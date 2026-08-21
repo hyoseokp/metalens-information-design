@@ -1,0 +1,14 @@
+# The reported numbers were produced with Python 3.12 and torch 2.6.0+cu118.
+# reproduce.py checks the weighted I_tar against records/expected.json within a
+# 1% relative tolerance, which absorbs CPU/CUDA and float32/float64 differences.
+name: metalens-information-design
+channels:
+  - conda-forge
+dependencies:
+  - python=3.12
+  - numpy>=1.26
+  - scipy>=1.11
+  - pip
+  - pip:
+      - torch>=2.4,<3
+      - tqdm

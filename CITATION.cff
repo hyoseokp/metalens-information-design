@@ -1,0 +1,40 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite both the software and the paper."
+title: "metalens-information-design"
+abstract: >-
+  Differentiable forward model and target-information objective for a metalens
+  designed behind an RGGB colour filter array. Includes three published width
+  maps, a script that reproduces their target information, and command-line
+  tools for optimizing and simulating a metalens camera.
+type: software
+authors:
+  - family-names: Park
+    given-names: Hyoseok
+    affiliation: "Department of Physics, Chungnam National University"
+    email: qkrgytjr12@gmail.com
+  - family-names: Park
+    given-names: Yeonsang
+    affiliation: "Department of Physics, Chungnam National University"
+    email: yeonsang.park@cnu.ac.kr
+version: "1.0.0"
+keywords:
+  - metalens
+  - metasurface
+  - computational imaging
+  - colour filter array
+  - inverse design
+  - optical simulation
+  - information theory
+preferred-citation:
+  type: article
+  title: >-
+    Direct camera-information optimization of color metalenses without a prescribed phase profile
+  authors:
+    - family-names: Park
+      given-names: Hyoseok
+      affiliation: "Department of Physics, Chungnam National University"
+    - family-names: Park
+      given-names: Yeonsang
+      affiliation: "Department of Physics, Chungnam National University"
+  year: 2026
+  notes: "arXiv preprint."

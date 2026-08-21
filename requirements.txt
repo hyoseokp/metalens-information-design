@@ -1,0 +1,7 @@
+# The full-Jones forward model and the target-information objective import only
+# torch, numpy, scipy and the standard library. tqdm gives optional progress
+# bars and is imported lazily.
+torch>=2.4,<3
+numpy>=1.26,<3
+scipy>=1.11
+tqdm

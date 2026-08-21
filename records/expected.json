@@ -1,0 +1,13 @@
+{
+  "_comment": "Manuscript Table 1 delivered target information I_tar (bit/raw pixel). reproduce.py scores the published width maps through the full-Jones forward model and compares against these values within a 1% relative tolerance (CPU/CUDA float differences are sub-percent).",
+  "i_tar": {
+    "reference": 0.5059,
+    "information": 0.5860,
+    "mtf": 0.4180
+  },
+  "charge_e_per_raw_pixel": {
+    "reference": 724.0,
+    "information": 624.4,
+    "mtf": 274.8
+  }
+}
