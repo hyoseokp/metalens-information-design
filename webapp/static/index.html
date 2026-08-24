@@ -250,7 +250,8 @@ var FALLBACK_CFAS = [
 var SUBSTRATE_UM = 700;      // 0.7 mm fused silica slab
 var PILLAR_PITCH_UM = 0.29;  // meta-atom lattice pitch (sets the minimum grid)
 /* measured peak VRAM per pupil grid (GB); null = not yet measured */
-var VRAM_GB = {240:null, 360:null, 480:null, 720:null};
+/* peak torch.cuda.max_memory_allocated, one field fwd+bwd, RTX 5880 (see README) */
+var VRAM_GB = {240:9.3, 360:9.7, 480:10.3, 720:11.9};
 
 var MOCK = new URLSearchParams(location.search).get("mock") === "1";
 
@@ -367,8 +368,12 @@ function updateGrid(){
 }
 function updateVram(){
   var g = parseInt($("pupil_grid").value,10);
-  var v = VRAM_GB[g];
-  $("dVram").textContent = (v===null || v===undefined) ? "TBD" : (v.toFixed(1)+" GB");
+  var keys = Object.keys(VRAM_GB).map(Number).sort(function(a,b){return a-b;});
+  var key = null;
+  for (var i = 0; i < keys.length; i++){ if (keys[i] >= g){ key = keys[i]; break; } }
+  if (key === null) key = keys[keys.length - 1];
+  var v = VRAM_GB[key];
+  $("dVram").textContent = (v===null || v===undefined) ? "TBD" : ("~" + v.toFixed(1) + " GB");
 }
 
 function updateDerived(){

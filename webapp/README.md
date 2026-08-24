@@ -33,20 +33,29 @@ state to `webapp/jobs/<id>/` (`config.json`, `progress.json`, `width.npy`,
 ## Hardware requirements
 
 The vectorial forward model (full 2x2 Jones propagation over nine wavelengths,
-float64) is only practical on CUDA. Peak GPU memory grows with the pupil grid:
+float64) is only practical on CUDA. The sensor-side operator (fixed 832 x 832
+fine grid) dominates the footprint, so peak memory grows only mildly with the
+pupil grid. Measured with `torch.cuda.max_memory_allocated` on an RTX 5880 Ada
+(torch 2.10, cu128), one field forward + backward at the largest aperture each
+grid supports:
 
-| pupil grid | aperture it can hold | peak VRAM | note |
+| pupil grid | aperture it can hold | peak allocation | allocator reserved |
 |---|---|---|---|
-| 240 | up to 69 um | to be measured | smoke tests |
-| 360 | up to 104 um | to be measured | |
-| 480 | up to 139 um | to be measured | |
-| 720 | up to 208 um | to be measured | production geometry |
+| 240 | up to 69 um | 9.3 GB | ~20 GB |
+| 360 | up to 104 um | 9.7 GB | ~18 GB |
+| 480 | up to 139 um | 10.3 GB | ~18 GB |
+| 720 | up to 208 um | 11.9 GB | ~18 GB |
+
+A GPU with 24 GB of memory runs every configuration; 32 GB leaves comfortable
+headroom. Cards below 16 GB are likely to fail on allocator reservation even
+though the raw allocation peaks near 12 GB. The worker backpropagates one field
+at a time, so `fields_per_step` does not multiply the peak.
 
 The full production configuration (720 grid, 25-field quadrature, 300 steps)
-runs in about 20 minutes on a 48 GB RTX 5880 at roughly 4 s/step; the completed
-job reports its measured `peak_vram_gb` in the UI, which is also how the table
-above will be filled in. If you run out of memory, reduce the aperture diameter
-(the pupil grid follows it) before reducing anything else.
+runs in about 20 minutes on a 48 GB RTX 5880 at roughly 4 s/step; every
+completed job also reports its own measured `peak_vram_gb` in the UI. If you
+run out of memory, reduce the aperture diameter (the pupil grid follows it)
+before reducing anything else.
 
 CPU execution is supported only as a smoke test: POST a job with
 `"allow_cpu": true` and a small step count, or run the worker directly:

@@ -315,20 +315,23 @@ def run(job_dir: Path) -> int:
             bail_out()
             return 0
         optimizer.zero_grad(set_to_none=True)
-        widths = param.expand()
         picks = torch.multinomial(field_weight.to("cpu", torch.float64),
                                   fields_per_step, replacement=True,
                                   generator=gen).tolist()
-        loss = widths.new_zeros(())
         for pick in picks:
             # A single field evaluation can take seconds to minutes, so honor
             # cancellation between fields as well as between steps.
             if progress.cancelled():
                 bail_out()
                 return 0
-            bits = scorer.target_information_bits(widths, field_points[pick])
-            loss = loss - bits / fields_per_step
-        loss.backward()
+            # Backward per field with a fresh expand so only one field's
+            # autograd graph is alive at a time; gradients accumulate on the
+            # projected parameter. Accumulating the losses and calling one
+            # backward would hold all graphs at once and multiply the peak
+            # GPU memory by fields_per_step.
+            bits = scorer.target_information_bits(param.expand(),
+                                                  field_points[pick])
+            (-bits / fields_per_step).backward()
         optimizer.step()
         scheduler.step()
 
