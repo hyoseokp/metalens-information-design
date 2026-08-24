@@ -1,0 +1,925 @@
+<title>I_tar Metalens Optimizer</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --rule:#c9c9c9; --rule2:#e4e4e4; --muted:#6b6b6b;
+    --panel:#ffffff; --accent:#204a87; --bad:#b00020; --field:#fafafa;
+    --rayR:#cc2b2b; --rayG:#1f9d3a; --rayB:#2450c8;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:#ffffff; color:var(--ink);
+    font-family:Arial,Helvetica,"Helvetica Neue",sans-serif;
+    font-size:13px; line-height:1.45;
+  }
+  a{color:var(--accent)}
+  header.top{
+    border-bottom:1px solid var(--rule); padding:12px 18px;
+    display:flex; align-items:baseline; gap:14px; flex-wrap:wrap;
+  }
+  header.top h1{font-size:15px; font-weight:700; margin:0; letter-spacing:.02em}
+  header.top .sub{color:var(--muted); font-size:12px}
+  header.top .mode{
+    margin-left:auto; font-size:11px; color:var(--muted);
+    border:1px solid var(--rule); padding:2px 8px; border-radius:2px;
+  }
+  #notice{
+    display:none; margin:0; padding:8px 18px; background:#fff8e1;
+    border-bottom:1px solid #e8d48a; font-size:12px; color:#6a5300;
+  }
+  #notice button{
+    float:right; border:none; background:none; cursor:pointer;
+    color:#6a5300; font-size:14px; line-height:1;
+  }
+  .grid{
+    display:grid; gap:0;
+    grid-template-columns: 320px minmax(360px,1fr) 340px;
+  }
+  .col{border-right:1px solid var(--rule); min-width:0}
+  .col:last-child{border-right:none}
+  .panel{padding:14px 16px; border-bottom:1px solid var(--rule2)}
+  .panel:last-child{border-bottom:none}
+  .phead{
+    display:flex; align-items:baseline; gap:9px; margin:0 0 12px 0;
+  }
+  .pl{
+    font-weight:700; font-size:13px; border:1px solid var(--ink);
+    width:18px; height:18px; display:inline-flex; align-items:center;
+    justify-content:center; border-radius:2px; flex:0 0 auto;
+  }
+  .lbl{
+    font-variant:small-caps; text-transform:lowercase; letter-spacing:.08em;
+    font-size:12.5px; color:#333; font-weight:600;
+  }
+  /* form */
+  .field{margin-bottom:10px}
+  .field label{display:block; font-size:11.5px; color:var(--muted); margin-bottom:3px}
+  .field .unit{color:#999}
+  .field input, .field select{
+    width:100%; font:inherit; font-size:12.5px; padding:5px 7px;
+    border:1px solid var(--rule); border-radius:2px; background:var(--field);
+    color:var(--ink);
+  }
+  .field input:focus, .field select:focus{
+    outline:2px solid var(--accent); outline-offset:-1px; background:#fff;
+  }
+  .row2{display:grid; grid-template-columns:1fr 1fr; gap:10px}
+  .derived{
+    display:flex; gap:18px; padding:8px 10px; margin:12px 0;
+    border:1px solid var(--rule2); background:#f7f9fc; font-size:12px;
+  }
+  .derived div{display:flex; flex-direction:column}
+  .derived .k{color:var(--muted); font-size:10.5px; letter-spacing:.04em; text-transform:uppercase}
+  .derived .v{font-weight:700; font-variant-numeric:tabular-nums}
+  .actions{display:flex; gap:10px; margin-top:6px}
+  button.act{
+    font:inherit; font-size:12.5px; padding:8px 12px; cursor:pointer;
+    border:1px solid var(--ink); background:#fff; border-radius:2px;
+  }
+  button.act.primary{background:var(--ink); color:#fff}
+  button.act:disabled{opacity:.4; cursor:not-allowed}
+  /* layout svg */
+  #layoutWrap{width:100%; overflow-x:auto}
+  #layout{width:100%; height:auto; display:block}
+  .legend{display:flex; gap:16px; font-size:11px; color:var(--muted); margin-top:8px; flex-wrap:wrap}
+  .legend i{display:inline-block; width:14px; height:2px; vertical-align:middle; margin-right:5px}
+  /* progress */
+  .barouter{border:1px solid var(--rule); height:16px; border-radius:2px; overflow:hidden; background:#f2f2f2}
+  .barinner{height:100%; width:0%; background:var(--accent); transition:width .3s ease}
+  .progmeta{display:flex; justify-content:space-between; font-size:11.5px; color:var(--muted); margin-top:5px; font-variant-numeric:tabular-nums}
+  #chart{width:100%; height:180px; display:block; margin-top:12px; border:1px solid var(--rule2)}
+  .status{font-size:12px; margin-top:10px; min-height:16px}
+  .status.err{color:var(--bad)}
+  /* width map */
+  #heat{width:100%; height:auto; display:block; border:1px solid var(--rule2); image-rendering:pixelated; background:#f6f6f6}
+  #cbar{width:100%; height:16px; display:block; margin-top:8px; border:1px solid var(--rule2)}
+  .cbarlab{display:flex; justify-content:space-between; font-size:11px; color:var(--muted); margin-top:3px; font-variant-numeric:tabular-nums}
+  #imgPanel{display:none}
+  .imgrow{display:grid; grid-template-columns:1fr 1fr; gap:10px}
+  .imgrow figure{margin:0}
+  .imgrow figcaption{font-size:10.5px; color:var(--muted); text-align:center; margin-top:3px; font-variant:small-caps; letter-spacing:.06em}
+  .imgrow img{width:100%; height:auto; display:block; border:1px solid var(--rule2); background:#fafafa}
+  #dllink{display:none; font-size:11.5px; margin-top:10px}
+  .hint{font-size:11px; color:#999; margin-top:6px}
+  @media (max-width:1080px){
+    .grid{grid-template-columns:1fr}
+    .col{border-right:none; border-bottom:1px solid var(--rule)}
+  }
+</style>
+
+<header class="top">
+  <h1>I<sub>tar</sub> Metalens Width-Map Optimizer</h1>
+  <span class="sub">information-theoretic inverse design &middot; local run console</span>
+  <span class="mode" id="modeTag">live</span>
+</header>
+<p id="notice"><button id="noticeClose" aria-label="dismiss">&times;</button><span id="noticeText"></span></p>
+
+<div class="grid">
+  <!-- LEFT -->
+  <div class="col">
+    <section class="panel">
+      <h2 class="phead"><span class="pl">a</span><span class="lbl">design specification</span></h2>
+      <form id="specForm" autocomplete="off">
+        <div class="field">
+          <label for="library">meta-atom library</label>
+          <select id="library" name="library"></select>
+        </div>
+        <div class="field">
+          <label for="cfa">CFA spectrum</label>
+          <select id="cfa" name="cfa"></select>
+        </div>
+        <div class="row2">
+          <div class="field">
+            <label for="focal_um">focal length f <span class="unit">(&micro;m)</span></label>
+            <input id="focal_um" name="focal_um" type="number" step="0.1" min="1" value="346.7">
+          </div>
+          <div class="field">
+            <label for="diameter_um">diameter D <span class="unit">(&micro;m)</span></label>
+            <input id="diameter_um" name="diameter_um" type="number" step="1" min="1" value="208">
+          </div>
+        </div>
+        <div class="row2">
+          <div class="field">
+            <label for="pixel_um">pixel pitch <span class="unit">(&micro;m)</span></label>
+            <input id="pixel_um" name="pixel_um" type="number" value="1.0" readonly
+                   style="background:#f3f3f3; color:#666" title="fixed by the 64-alias sampling contract">
+            <span class="unit" style="display:block; margin-top:2px">fixed by the 64-alias sampling contract</span>
+          </div>
+          <div class="field">
+            <label for="fov_deg">FOV half-angle <span class="unit">(deg, &le; 20)</span></label>
+            <input id="fov_deg" name="fov_deg" type="number" step="0.5" min="0" max="20" value="10">
+          </div>
+        </div>
+        <div class="row2">
+          <div class="field">
+            <label for="pupil_grid">pupil grid <span class="unit">(min <span id="gridMin">720</span>)</span></label>
+            <input id="pupil_grid" name="pupil_grid" type="number" step="8" min="240" value="720">
+          </div>
+          <div class="field">
+            <label for="steps">optimization steps</label>
+            <input id="steps" name="steps" type="number" step="1" min="1" value="120">
+          </div>
+        </div>
+        <div class="row2">
+          <div class="field">
+            <label for="fields_per_step">field samples / step</label>
+            <input id="fields_per_step" name="fields_per_step" type="number" step="1" min="1" value="4">
+          </div>
+          <div class="field">
+            <label for="seed">seed</label>
+            <input id="seed" name="seed" type="number" step="1" value="20260908">
+          </div>
+        </div>
+
+        <div class="derived" aria-live="polite">
+          <div><span class="k">NA</span><span class="v" id="dNA">&mdash;</span></div>
+          <div><span class="k">f-number</span><span class="v" id="dFnum">&mdash;</span></div>
+          <div><span class="k">image &oslash;</span><span class="v" id="dImg">&mdash;</span></div>
+          <div><span class="k">est. VRAM</span><span class="v" id="dVram">&mdash;</span></div>
+        </div>
+
+        <div class="actions">
+          <button type="submit" class="act primary" id="runBtn">Run optimization</button>
+          <button type="button" class="act" id="cancelBtn" disabled>Cancel</button>
+        </div>
+        <p class="hint" id="jobHint"></p>
+      </form>
+    </section>
+  </div>
+
+  <!-- CENTER -->
+  <div class="col">
+    <section class="panel">
+      <h2 class="phead"><span class="pl">b</span><span class="lbl">optical layout</span></h2>
+      <div id="layoutWrap"><svg id="layout" viewBox="0 0 1000 300" preserveAspectRatio="xMidYMid meet" role="img" aria-label="lens cross-section layout"></svg></div>
+      <div class="legend">
+        <span><i style="background:var(--rayR)"></i>&lambda; long (near focus)</span>
+        <span><i style="background:var(--rayG)"></i>&lambda; design</span>
+        <span><i style="background:var(--rayB)"></i>&lambda; short (far focus)</span>
+        <span><i style="background:#999"></i>chief / incoming</span>
+      </div>
+    </section>
+    <section class="panel">
+      <h2 class="phead"><span class="pl">c</span><span class="lbl">optimization progress</span></h2>
+      <div class="barouter"><div class="barinner" id="bar"></div></div>
+      <div class="progmeta">
+        <span id="progStep">step 0 / 0</span>
+        <span id="progEta">ETA &mdash;</span>
+      </div>
+      <canvas id="chart" aria-label="I_tar versus step chart"></canvas>
+      <div class="status" id="status">idle.</div>
+    </section>
+  </div>
+
+  <!-- RIGHT -->
+  <div class="col">
+    <section class="panel">
+      <h2 class="phead"><span class="pl">d</span><span class="lbl">width map</span></h2>
+      <canvas id="heat" aria-label="meta-atom width map heatmap"></canvas>
+      <canvas id="cbar" aria-label="width colorbar"></canvas>
+      <div class="cbarlab"><span id="cbMin">&mdash;</span><span>width (&micro;m)</span><span id="cbMax">&mdash;</span></div>
+    </section>
+    <section class="panel" id="imgPanel">
+      <h2 class="phead"><span class="pl">e</span><span class="lbl">PSF / MTF</span></h2>
+      <div class="imgrow">
+        <figure><img id="psfImg" alt="point spread function"><figcaption>PSF</figcaption></figure>
+        <figure><img id="mtfImg" alt="modulation transfer function"><figcaption>MTF</figcaption></figure>
+      </div>
+      <a id="dllink" href="#" download>download width map (.npy)</a>
+    </section>
+  </div>
+</div>
+
+<script>
+"use strict";
+(function(){
+
+/* ---------- constants / defaults ---------- */
+var DEFAULTS = {
+  focal_um:346.7, diameter_um:208, pixel_um:1.0, fov_deg:10,
+  pupil_grid:720, steps:120, fields_per_step:4, seed:20260908
+};
+var FALLBACK_LIBS = [
+  {id:"SiN",  label:"SiN square posts, h = 1000 nm, pitch 290 nm"}
+];
+var FALLBACK_CFAS = [
+  {id:"samsung_galaxy_s20", label:"Samsung Galaxy S20 RGGB"},
+  {id:"boxcar",             label:"synthetic boxcar (zero-crosstalk ablation)"},
+  {id:"gaussian",           label:"synthetic Gaussian (smooth ablation)"}
+];
+var SUBSTRATE_UM = 700;      // 0.7 mm fused silica slab
+var PILLAR_PITCH_UM = 0.29;  // meta-atom lattice pitch (sets the minimum grid)
+/* measured peak VRAM per pupil grid (GB); null = not yet measured */
+var VRAM_GB = {240:null, 360:null, 480:null, 720:null};
+
+var MOCK = new URLSearchParams(location.search).get("mock") === "1";
+
+/* ---------- element refs ---------- */
+var $ = function(id){ return document.getElementById(id); };
+var form = $("specForm");
+var runBtn = $("runBtn"), cancelBtn = $("cancelBtn");
+var statusEl = $("status"), jobHint = $("jobHint");
+var noticeEl = $("notice"), noticeText = $("noticeText");
+
+/* ---------- app state ---------- */
+var currentJob = null;      // job id
+var pollTimer = null;
+var lastHistory = [];       // [[step,val],...]
+var lastPreview = null;     // {w,h,min,max,data}
+var mock = null;            // mock run state
+
+/* ==================================================================
+   Init
+================================================================== */
+function showNotice(msg){
+  noticeText.textContent = msg;
+  noticeEl.style.display = "block";
+}
+$("noticeClose").addEventListener("click", function(){ noticeEl.style.display="none"; });
+
+function fillSelect(sel, items){
+  sel.innerHTML = "";
+  items.forEach(function(it){
+    var o = document.createElement("option");
+    o.value = it.id; o.textContent = it.label || it.id;
+    sel.appendChild(o);
+  });
+}
+
+function applyDefaults(d){
+  d = d || {};
+  Object.keys(DEFAULTS).forEach(function(k){
+    var el = form.elements[k];
+    if(!el) return;
+    var v = (d[k] !== undefined && d[k] !== null) ? d[k] : DEFAULTS[k];
+    el.value = v;
+  });
+}
+
+function init(){
+  $("modeTag").textContent = MOCK ? "mock" : "live";
+  applyDefaults(DEFAULTS);
+  // preliminary population so UI is usable immediately
+  fillSelect($("library"), FALLBACK_LIBS);
+  fillSelect($("cfa"), FALLBACK_CFAS);
+
+  if(MOCK){
+    // still try to look complete; no backend call
+    finishInit();
+    return;
+  }
+  fetch("/api/meta").then(function(r){
+    if(!r.ok) throw new Error("meta " + r.status);
+    return r.json();
+  }).then(function(m){
+    if(m.libraries && m.libraries.length) fillSelect($("library"), m.libraries);
+    if(m.cfas && m.cfas.length) fillSelect($("cfa"), m.cfas);
+    if(m.defaults) applyDefaults(m.defaults);
+    if(m.defaults && m.defaults.cfa) $("cfa").value = m.defaults.cfa;
+    if(m.defaults && m.defaults.library) $("library").value = m.defaults.library;
+    finishInit();
+  }).catch(function(){
+    showNotice("backend offline — preview mode. The optical layout panel is fully functional; running a job is disabled until the backend is reachable (or append ?mock=1 to the URL to demo).");
+    finishInit();
+  });
+}
+
+function finishInit(){
+  updateGrid();
+  updateDerived();
+  drawLayout();
+  drawChart();
+  drawHeatmap();
+}
+
+/* ==================================================================
+   Derived quantities (NA, f/#, image diameter)
+================================================================== */
+function readForm(){
+  return {
+    library: $("library").value,
+    cfa: $("cfa").value,
+    focal_um: parseFloat($("focal_um").value),
+    diameter_um: parseFloat($("diameter_um").value),
+    pixel_um: parseFloat($("pixel_um").value),
+    fov_deg: parseFloat($("fov_deg").value),
+    pupil_grid: parseInt($("pupil_grid").value,10),
+    steps: parseInt($("steps").value,10),
+    fields_per_step: parseInt($("fields_per_step").value,10),
+    seed: parseInt($("seed").value,10)
+  };
+}
+
+/* minimum pupil grid: the lattice must tile the aperture (even, multiple of 8) */
+function minGridFor(D){
+  if(!isFinite(D) || D<=0) return 240;
+  return Math.max(240, Math.ceil(Math.ceil(D/PILLAR_PITCH_UM)/8)*8);
+}
+var gridTouched = false;
+function updateGrid(){
+  var D = parseFloat($("diameter_um").value);
+  var g = minGridFor(D);
+  $("gridMin").textContent = g;
+  var el = $("pupil_grid");
+  el.min = g;
+  if(!gridTouched || parseInt(el.value,10) < g) el.value = g;
+  updateVram();
+}
+function updateVram(){
+  var g = parseInt($("pupil_grid").value,10);
+  var v = VRAM_GB[g];
+  $("dVram").textContent = (v===null || v===undefined) ? "TBD" : (v.toFixed(1)+" GB");
+}
+
+function updateDerived(){
+  var f = parseFloat($("focal_um").value);
+  var D = parseFloat($("diameter_um").value);
+  var fov = parseFloat($("fov_deg").value);
+  if(isFinite(f) && isFinite(D) && f>0 && D>0){
+    var NA = Math.sin(Math.atan(D/(2*f)));
+    $("dNA").textContent = NA.toFixed(3);
+    $("dFnum").textContent = (f/D).toFixed(2);
+  } else {
+    $("dNA").textContent = "—"; $("dFnum").textContent = "—";
+  }
+  if(isFinite(f) && isFinite(fov) && f>0){
+    var img = 2 * f * Math.tan(fov*Math.PI/180);
+    $("dImg").textContent = img.toFixed(1) + " µm";
+  } else {
+    $("dImg").textContent = "—";
+  }
+  updateVram();
+}
+
+/* ==================================================================
+   Panel b — optical layout (SVG, true geometry, uniform scale)
+================================================================== */
+function niceStep(raw){
+  var pow = Math.pow(10, Math.floor(Math.log10(raw)));
+  var n = raw / pow;
+  var s = (n<1.5)?1:(n<3)?2:(n<7)?5:10;
+  return s*pow;
+}
+
+function drawLayout(){
+  var f = parseFloat($("focal_um").value);
+  var D = parseFloat($("diameter_um").value);
+  var fovDeg = parseFloat($("fov_deg").value);
+  if(!(isFinite(f)&&f>0&&isFinite(D)&&D>0)){ return; }
+  if(!isFinite(fovDeg)||fovDeg<0) fovDeg = 0;
+
+  var svg = $("layout");
+  var W = 1000, pad = 34;
+  // world extents (µm): z along optical axis, x transverse
+  var zmin = -SUBSTRATE_UM;
+  var zmax = f * 1.10;
+  var zspan = zmax - zmin;
+  var imgH = f * Math.tan(fovDeg*Math.PI/180);
+  var xmax = Math.max(D/2, imgH) * 1.28;
+  if(xmax<=0) xmax = D/2*1.28 || 1;
+  var xspan = 2*xmax;
+
+  var scale = (W - 2*pad) / zspan;              // uniform px/µm from width
+  var H = xspan*scale + 2*pad;
+  svg.setAttribute("viewBox", "0 0 " + W.toFixed(1) + " " + H.toFixed(1));
+
+  function X(z){ return pad + (z - zmin)*scale; }
+  function Y(x){ return pad + (xmax - x)*scale; }
+
+  var el = [];
+  function line(x1,y1,x2,y2,stroke,w,opa,dash){
+    el.push('<line x1="'+x1.toFixed(1)+'" y1="'+y1.toFixed(1)+'" x2="'+x2.toFixed(1)+
+      '" y2="'+y2.toFixed(1)+'" stroke="'+stroke+'" stroke-width="'+w+'"'+
+      (opa!==undefined?' stroke-opacity="'+opa+'"':'')+
+      (dash?' stroke-dasharray="'+dash+'"':'')+'/>');
+  }
+  function text(x,y,s,anchor,size,color){
+    el.push('<text x="'+x.toFixed(1)+'" y="'+y.toFixed(1)+'" text-anchor="'+(anchor||'start')+
+      '" font-family="Arial,Helvetica,sans-serif" font-size="'+(size||11)+'" fill="'+(color||'#333')+'">'+s+'</text>');
+  }
+
+  // substrate slab
+  el.push('<rect x="'+X(zmin).toFixed(1)+'" y="'+Y(xmax).toFixed(1)+'" width="'+((0-zmin)*scale).toFixed(1)+
+    '" height="'+(xspan*scale).toFixed(1)+'" fill="#eef3f8" stroke="#b8c6d8" stroke-width="0.8"/>');
+  text(X(zmin)+6, Y(xmax)+14, "fused silica 0.7 mm", "start", 10.5, "#7d8ea3");
+
+  // optical axis
+  line(X(zmin), Y(0), X(zmax), Y(0), "#bbbbbb", 0.8, 1, "4 3");
+
+  // metasurface at z=0 (over aperture)
+  line(X(0), Y(D/2), X(0), Y(-D/2), "#111111", 2.0);
+  text(X(0), Y(xmax)-6, "metasurface", "middle", 10.5, "#111");
+
+  // sensor plane at z=f
+  line(X(f), Y(xmax), X(f), Y(-xmax), "#444444", 1.2, 1, "2 3");
+  text(X(f), Y(-xmax)+14, "sensor  z = f", "middle", 10.5, "#444");
+
+  // rays
+  var wls = [ {factor:0.97, col:"#cc2b2b"},
+              {factor:1.00, col:"#1f9d3a"},
+              {factor:1.03, col:"#2450c8"} ];
+  var fovR = fovDeg*Math.PI/180;
+  var fields = fovDeg>0 ? [-fovR, -fovR/2, 0, fovR/2, fovR] : [0];
+  var apEdges = [D/2, -D/2];
+
+  fields.forEach(function(th){
+    var xi = f * Math.tan(th);              // paraxial-consistent image height (design f)
+    var tanT = Math.tan(th);
+    // incoming collimated rays (in glass), gray — through aperture edges + center
+    [D/2, 0, -D/2].forEach(function(xa){
+      var xStart = xa + zmin*tanT;          // at z=zmin
+      line(X(zmin), Y(xStart), X(0), Y(xa), "#9a9a9a", 0.8, 0.55);
+    });
+    // chief ray (center of aperture -> design focus), gray
+    line(X(0), Y(0), X(f), Y(xi), "#7a7a7a", 0.8, 0.7);
+    // marginal rays per wavelength -> chromatic focus z
+    wls.forEach(function(wl){
+      var zf = f*wl.factor;
+      apEdges.forEach(function(xa){
+        line(X(0), Y(xa), X(zf), Y(xi), wl.col, 0.8, 0.85);
+      });
+    });
+  });
+
+  // dimension: D (vertical) just left of metasurface
+  var zD = -Math.min(SUBSTRATE_UM*0.14, zspan*0.045);
+  line(X(zD), Y(D/2), X(zD), Y(-D/2), "#555", 0.8);
+  line(X(zD)-4, Y(D/2), X(zD)+4, Y(D/2), "#555", 0.8);
+  line(X(zD)-4, Y(-D/2), X(zD)+4, Y(-D/2), "#555", 0.8);
+  text(X(zD)-6, Y(0), "D = "+D.toFixed(0)+" µm", "end", 10.5, "#555");
+
+  // dimension: f (horizontal) below aperture
+  var xF = -xmax*0.82;
+  line(X(0), Y(xF), X(f), Y(xF), "#555", 0.8);
+  line(X(0), Y(xF)-4, X(0), Y(xF)+4, "#555", 0.8);
+  line(X(f), Y(xF)-4, X(f), Y(xF)+4, "#555", 0.8);
+  text(X(f/2), Y(xF)-5, "f = "+f.toFixed(1)+" µm", "middle", 10.5, "#555");
+
+  // z-axis ticks (bottom), adaptive
+  var yAxis = H - pad + 16;
+  var step = niceStep(zspan/7);
+  var t0 = Math.ceil(zmin/step)*step;
+  for(var zt=t0; zt<=zmax+1e-6; zt+=step){
+    var xt = X(zt);
+    line(xt, H-pad, xt, H-pad+4, "#888", 0.8);
+    text(xt, yAxis, zt.toFixed(0), "middle", 9.5, "#888");
+  }
+  text(X(zmax), yAxis+12, "z (µm)", "end", 9.5, "#888");
+
+  svg.innerHTML = el.join("");
+}
+
+/* ==================================================================
+   Panel c — I_tar line chart (canvas)
+================================================================== */
+function fitCanvas(canvas, cssH){
+  var rect = canvas.getBoundingClientRect();
+  var cssW = rect.width || canvas.clientWidth || 300;
+  if(cssH){ canvas.style.height = cssH+"px"; }
+  var h = cssH || rect.height || 180;
+  var dpr = window.devicePixelRatio || 1;
+  canvas.width = Math.max(1, Math.round(cssW*dpr));
+  canvas.height = Math.max(1, Math.round(h*dpr));
+  var ctx = canvas.getContext("2d");
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  return {ctx:ctx, w:cssW, h:h};
+}
+
+function drawChart(){
+  var c = fitCanvas($("chart"), 180);
+  var ctx = c.ctx, W = c.w, H = c.h;
+  ctx.clearRect(0,0,W,H);
+  var m = {l:44, r:10, t:12, b:26};
+  var pw = W-m.l-m.r, ph = H-m.t-m.b;
+
+  var hist = lastHistory;
+  var spec = readForm();
+  var xmaxStep = Math.max(spec.steps||1, hist.length?hist[hist.length-1][0]:1, 1);
+  var ymin=0.48, ymax=0.60;
+  if(hist.length){
+    var vs = hist.map(function(p){return p[1];});
+    ymin = Math.min.apply(null, vs); ymax = Math.max.apply(null, vs);
+    var padY = (ymax-ymin)*0.15 || 0.01;
+    ymin -= padY; ymax += padY;
+  }
+
+  function px(s){ return m.l + (s/xmaxStep)*pw; }
+  function py(v){ return m.t + ph - ((v-ymin)/((ymax-ymin)||1))*ph; }
+
+  // axes
+  ctx.strokeStyle="#cccccc"; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(m.l,m.t); ctx.lineTo(m.l,m.t+ph); ctx.lineTo(m.l+pw,m.t+ph); ctx.stroke();
+
+  ctx.fillStyle="#888"; ctx.font="10px Arial,Helvetica,sans-serif";
+  // y ticks
+  ctx.textAlign="right"; ctx.textBaseline="middle";
+  for(var i=0;i<=4;i++){
+    var v = ymin + (ymax-ymin)*i/4;
+    var y = py(v);
+    ctx.strokeStyle="#eee"; ctx.beginPath(); ctx.moveTo(m.l,y); ctx.lineTo(m.l+pw,y); ctx.stroke();
+    ctx.fillText(v.toFixed(3), m.l-6, y);
+  }
+  // x ticks
+  ctx.textAlign="center"; ctx.textBaseline="top";
+  var xs = niceStep(xmaxStep/5);
+  for(var s=0;s<=xmaxStep+1e-6;s+=xs){
+    var x = px(s);
+    ctx.strokeStyle="#eee"; ctx.beginPath(); ctx.moveTo(x,m.t); ctx.lineTo(x,m.t+ph); ctx.stroke();
+    ctx.fillStyle="#888"; ctx.fillText(String(Math.round(s)), x, m.t+ph+5);
+  }
+  ctx.fillStyle="#888"; ctx.textAlign="center";
+  ctx.fillText("step", m.l+pw/2, m.t+ph+14);
+  ctx.save();
+  ctx.translate(11, m.t+ph/2); ctx.rotate(-Math.PI/2); ctx.textAlign="center"; ctx.textBaseline="middle";
+  ctx.fillText("I_tar", 0, 0); ctx.restore();
+
+  // line
+  if(hist.length){
+    ctx.strokeStyle="#204a87"; ctx.lineWidth=1.6; ctx.beginPath();
+    hist.forEach(function(p,idx){
+      var x=px(p[0]), y=py(p[1]);
+      if(idx===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+    });
+    ctx.stroke();
+    // last point marker
+    var lp = hist[hist.length-1];
+    ctx.fillStyle="#204a87";
+    ctx.beginPath(); ctx.arc(px(lp[0]),py(lp[1]),2.6,0,2*Math.PI); ctx.fill();
+    ctx.fillStyle="#204a87"; ctx.font="10px Arial"; ctx.textAlign="left"; ctx.textBaseline="bottom";
+    ctx.fillText(lp[1].toFixed(4), px(lp[0])+5, py(lp[1])-3);
+  } else {
+    ctx.fillStyle="#bbb"; ctx.textAlign="center"; ctx.textBaseline="middle";
+    ctx.fillText("no data yet", m.l+pw/2, m.t+ph/2);
+  }
+}
+
+/* ==================================================================
+   Panel d — width map heatmap (viridis)
+================================================================== */
+var VIRIDIS = [
+  [68,1,84],[71,44,122],[59,81,139],[44,113,142],[33,144,141],
+  [39,173,129],[92,200,99],[170,220,50],[253,231,37]
+];
+function viridis(t){
+  if(t<0)t=0; if(t>1)t=1;
+  var n=VIRIDIS.length-1, f=t*n, i=Math.floor(f), fr=f-i;
+  if(i>=n){ return VIRIDIS[n]; }
+  var a=VIRIDIS[i], b=VIRIDIS[i+1];
+  return [a[0]+(b[0]-a[0])*fr, a[1]+(b[1]-a[1])*fr, a[2]+(b[2]-a[2])*fr];
+}
+
+function drawHeatmap(){
+  var canvas = $("heat");
+  // keep it square based on css width
+  var rect = canvas.getBoundingClientRect();
+  var cssW = rect.width || canvas.clientWidth || 300;
+  canvas.style.height = cssW + "px";
+  var dpr = window.devicePixelRatio||1;
+  canvas.width = Math.round(cssW*dpr);
+  canvas.height = Math.round(cssW*dpr);
+  var ctx = canvas.getContext("2d");
+  ctx.setTransform(1,0,0,1,0,0);
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  var p = lastPreview;
+  if(!p || !p.data || !p.w || !p.h){
+    ctx.fillStyle="#f6f6f6"; ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.fillStyle="#bbb"; ctx.font=(13*dpr)+"px Arial"; ctx.textAlign="center"; ctx.textBaseline="middle";
+    ctx.fillText("no width map yet", canvas.width/2, canvas.height/2);
+    drawColorbar(null); return;
+  }
+  // render source into a small offscreen canvas then scale up (nearest)
+  var off = document.createElement("canvas");
+  off.width = p.w; off.height = p.h;
+  var octx = off.getContext("2d");
+  var img = octx.createImageData(p.w, p.h);
+  var rng = (p.max - p.min) || 1;
+  for(var idx=0; idx<p.w*p.h; idx++){
+    var t = (p.data[idx]-p.min)/rng;
+    var c = viridis(t);
+    var o = idx*4;
+    img.data[o]=c[0]; img.data[o+1]=c[1]; img.data[o+2]=c[2]; img.data[o+3]=255;
+  }
+  octx.putImageData(img,0,0);
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(off, 0,0, canvas.width, canvas.height);
+
+  drawColorbar(p);
+  $("cbMin").textContent = p.min.toFixed(3);
+  $("cbMax").textContent = p.max.toFixed(3);
+}
+
+function drawColorbar(p){
+  var c = fitCanvas($("cbar"), 16);
+  var ctx=c.ctx, W=c.w, H=c.h;
+  ctx.clearRect(0,0,W,H);
+  for(var x=0;x<W;x++){
+    var col = viridis(x/(W-1));
+    ctx.fillStyle="rgb("+Math.round(col[0])+","+Math.round(col[1])+","+Math.round(col[2])+")";
+    ctx.fillRect(x,0,1,H);
+  }
+  if(!p){ $("cbMin").textContent="—"; $("cbMax").textContent="—"; }
+}
+
+/* ==================================================================
+   Job control
+================================================================== */
+function setRunning(on){
+  runBtn.disabled = on;
+  cancelBtn.disabled = !on;
+  Array.prototype.forEach.call(form.querySelectorAll("input,select"), function(e){ e.disabled = on; });
+}
+
+function setStatus(txt, isErr){
+  statusEl.textContent = txt;
+  statusEl.className = "status" + (isErr ? " err" : "");
+}
+
+function fmtEta(s){
+  if(s==null || !isFinite(s) || s<0) return "ETA —";
+  s = Math.round(s);
+  var m = Math.floor(s/60), r = s%60;
+  return "ETA " + (m>0 ? m+"m "+r+"s" : r+"s");
+}
+
+form.addEventListener("submit", function(e){
+  e.preventDefault();
+  if(runBtn.disabled) return;
+  var spec = readForm();
+  // reset views
+  lastHistory = []; lastPreview = null;
+  $("imgPanel").style.display="none"; $("dllink").style.display="none";
+  drawChart(); drawHeatmap();
+
+  if(MOCK){ startMock(spec); return; }
+
+  setStatus("submitting job…");
+  fetch("/api/jobs", {
+    method:"POST", headers:{"Content-Type":"application/json"},
+    body: JSON.stringify(spec)
+  }).then(function(r){
+    if(!r.ok) throw new Error("submit "+r.status);
+    return r.json();
+  }).then(function(j){
+    currentJob = j.job_id;
+    jobHint.textContent = "job " + currentJob;
+    setRunning(true);
+    setStatus("queued…");
+    poll();
+  }).catch(function(err){
+    setStatus("could not submit job: "+err.message+". Is the backend running?", true);
+  });
+});
+
+cancelBtn.addEventListener("click", function(){
+  if(MOCK){ stopMock("cancelled"); return; }
+  if(!currentJob) return;
+  cancelBtn.disabled = true;
+  fetch("/api/jobs/"+encodeURIComponent(currentJob)+"/cancel", {method:"POST"})
+    .then(function(r){ return r.json(); })
+    .then(function(){ setStatus("cancel requested…"); })
+    .catch(function(){ setStatus("cancel request failed.", true); cancelBtn.disabled=false; });
+});
+
+function poll(){
+  if(!currentJob) return;
+  fetch("/api/jobs/"+encodeURIComponent(currentJob))
+    .then(function(r){ if(!r.ok) throw new Error("status "+r.status); return r.json(); })
+    .then(function(st){ applyStatus(st); })
+    .catch(function(err){
+      setStatus("polling error: "+err.message, true);
+      pollTimer = setTimeout(poll, 5000);   // keep trying; backend may recover
+    });
+}
+
+function applyStatus(st){
+  var total = st.total_steps || readForm().steps || 1;
+  var step = st.step || 0;
+  $("progStep").textContent = "step " + step + " / " + total;
+  $("bar").style.width = Math.max(0, Math.min(100, 100*step/total)) + "%";
+  $("progEta").textContent = fmtEta(st.eta_s);
+
+  if(Array.isArray(st.itar_history)){ lastHistory = st.itar_history; drawChart(); }
+  if(st.width_preview){ lastPreview = st.width_preview; drawHeatmap(); }
+
+  var s = st.status;
+  if(s==="error"){
+    setStatus("error: " + (st.message||"unknown error"), true);
+    finalize(false); return;
+  }
+  if(s==="cancelled"){
+    setStatus("cancelled." + (st.message?(" "+st.message):""));
+    finalize(false); return;
+  }
+  if(s==="done"){
+    setStatus("done. " + (st.message||"") + "  final I_tar = " +
+      (lastHistory.length ? lastHistory[lastHistory.length-1][1].toFixed(4) : "—"));
+    showResults();
+    finalize(true); return;
+  }
+  // queued | syncing | running
+  var label = {queued:"queued…", syncing:"syncing to GPU node…", running:"running…"}[s] || (s||"running…");
+  setStatus(label + (st.message?("  "+st.message):""));
+  pollTimer = setTimeout(poll, 5000);
+}
+
+function finalize(){
+  setRunning(false);
+  if(pollTimer){ clearTimeout(pollTimer); pollTimer=null; }
+}
+
+function showResults(){
+  if(!currentJob) return;
+  var base = "/api/jobs/"+encodeURIComponent(currentJob);
+  var bust = "?t="+Date.now();
+  $("psfImg").src = base+"/psf.png"+bust;
+  $("mtfImg").src = base+"/mtf.png"+bust;
+  var dl = $("dllink");
+  dl.href = base+"/width.npy"; dl.style.display="inline";
+  $("imgPanel").style.display="block";
+}
+
+/* ==================================================================
+   Mock mode
+================================================================== */
+function makeRadialWidth(w,h,minW,maxW,seed,phase){
+  var data = new Float32Array(w*h);
+  var cx=(w-1)/2, cy=(h-1)/2, R=Math.hypot(cx,cy);
+  var rnd = mulberry32(seed);
+  for(var y=0;y<h;y++) for(var x=0;x<w;x++){
+    var r = Math.hypot(x-cx,y-cy)/R;                 // 0..1
+    // hyperboloid-ish wrapped phase -> width, plus small noise
+    var v = 0.5*(1+Math.cos(2*Math.PI*(2.5*r*r) - phase));
+    v = v*0.7 + (1-r)*0.3;
+    v += (rnd()-0.5)*0.06;
+    if(v<0)v=0; if(v>1)v=1;
+    data[y*w+x] = minW + v*(maxW-minW);
+  }
+  return data;
+}
+function mulberry32(a){
+  return function(){
+    a|=0; a=a+0x6D2B79F5|0;
+    var t=Math.imul(a^a>>>15,1|a);
+    t=t+Math.imul(t^t>>>7,61|t)^t;
+    return ((t^t>>>14)>>>0)/4294967296;
+  };
+}
+
+function startMock(spec){
+  var total = spec.steps || 120;
+  mock = {
+    total: total, step: 0, hist: [], t0: Date.now(),
+    stepsPerSec: Math.max(2, total/24),   // ~24 s run
+    minW: 0.10, maxW: 0.24, cancel:false,
+    w: 96, h: 96, seed: spec.seed>>>0
+  };
+  currentJob = "mock-"+Date.now();
+  jobHint.textContent = "mock job " + currentJob;
+  setRunning(true);
+  setStatus("running (mock)…");
+  mockTick();
+}
+
+function mockTick(){
+  if(!mock || mock.cancel) return;
+  var elapsed = (Date.now()-mock.t0)/1000;
+  var step = Math.min(mock.total, Math.floor(elapsed*mock.stepsPerSec));
+  mock.step = step;
+  // build history up to current step (every 5 steps + endpoints)
+  var hist = [];
+  for(var k=0;k<=step;k+=5){ hist.push([k, mockItar(k, mock.total)]); }
+  if(hist.length===0 || hist[hist.length-1][0]!==step){ hist.push([step, mockItar(step, mock.total)]); }
+  mock.hist = hist;
+  lastHistory = hist;
+  lastPreview = {
+    w:mock.w, h:mock.h, min:mock.minW, max:mock.maxW,
+    data: makeRadialWidth(mock.w, mock.h, mock.minW, mock.maxW, mock.seed, (step/mock.total)*3.0)
+  };
+
+  $("progStep").textContent = "step "+step+" / "+mock.total;
+  $("bar").style.width = (100*step/mock.total)+"%";
+  var remain = (mock.total-step)/mock.stepsPerSec;
+  $("progEta").textContent = fmtEta(step>=mock.total?0:remain);
+  drawChart(); drawHeatmap();
+
+  if(step>=mock.total){
+    setStatus("done (mock). final I_tar = "+mockItar(mock.total,mock.total).toFixed(4));
+    mockShowImages();
+    finalize(true);
+    mock=null;
+    return;
+  }
+  setStatus("running (mock)… step "+step);
+  setTimeout(mockTick, 500);
+}
+
+function mockItar(step, total){
+  var p = step/total;
+  return 0.50 + 0.086*(1-Math.exp(-3*p)) + (Math.sin(step*1.7)*0.0015);
+}
+
+function stopMock(){
+  if(!mock) return;
+  mock.cancel = true;
+  setStatus("cancelled (mock).");
+  finalize(false);
+  mock=null;
+}
+
+function mockShowImages(){
+  // synthesize small PSF (airy blob) and MTF (decay) as data URLs
+  $("psfImg").src = mockPSF();
+  $("mtfImg").src = mockMTF();
+  $("dllink").style.display="none";  // no real file in mock
+  $("imgPanel").style.display="block";
+}
+function mockPSF(){
+  var n=120, cv=document.createElement("canvas"); cv.width=n; cv.height=n;
+  var ctx=cv.getContext("2d"); var img=ctx.createImageData(n,n);
+  var cx=(n-1)/2, cy=(n-1)/2;
+  for(var y=0;y<n;y++)for(var x=0;x<n;x++){
+    var r=Math.hypot(x-cx,y-cy)/6+1e-3;
+    var a=2*besselish(r); var I=a*a; if(I>1)I=1;
+    var c=viridis(Math.sqrt(I)); var o=(y*n+x)*4;
+    img.data[o]=c[0];img.data[o+1]=c[1];img.data[o+2]=c[2];img.data[o+3]=255;
+  }
+  ctx.putImageData(img,0,0); return cv.toDataURL();
+}
+function besselish(x){ return Math.sin(x)/x; } // crude airy stand-in
+function mockMTF(){
+  var w=160,h=120, cv=document.createElement("canvas"); cv.width=w; cv.height=h;
+  var ctx=cv.getContext("2d");
+  ctx.fillStyle="#fafafa"; ctx.fillRect(0,0,w,h);
+  ctx.strokeStyle="#ddd"; ctx.strokeRect(0.5,0.5,w-1,h-1);
+  ctx.strokeStyle="#204a87"; ctx.lineWidth=1.5; ctx.beginPath();
+  for(var i=0;i<=w;i++){
+    var fr=i/w; var m=Math.max(0,(2/Math.PI)*(Math.acos(fr)-fr*Math.sqrt(Math.max(0,1-fr*fr))));
+    var y=h-4-m*(h-8);
+    if(i===0)ctx.moveTo(2,y); else ctx.lineTo(i,y);
+  }
+  ctx.stroke();
+  ctx.fillStyle="#999"; ctx.font="9px Arial"; ctx.fillText("MTF (diffraction limit)",6,12);
+  return cv.toDataURL();
+}
+
+/* ==================================================================
+   Wiring: live updates + resize
+================================================================== */
+["focal_um","diameter_um","fov_deg"].forEach(function(id){
+  $(id).addEventListener("input", function(){ updateDerived(); drawLayout(); drawChart(); });
+});
+$("diameter_um").addEventListener("input", updateGrid);
+$("pupil_grid").addEventListener("input", function(){ gridTouched = true; updateVram(); });
+$("steps").addEventListener("input", drawChart);
+
+var rzTimer=null;
+window.addEventListener("resize", function(){
+  clearTimeout(rzTimer);
+  rzTimer=setTimeout(function(){ drawLayout(); drawChart(); drawHeatmap(); }, 120);
+});
+
+init();
+
+})();
+</script>

@@ -57,6 +57,27 @@ stochastic and the objective non-convex. A full run is only practical on CUDA.
 
 Tested on Python 3.12, torch 2.6.0+cu118.
 
+## Interactive designer (local web app)
+
+`webapp/` provides a local browser console around the same optimization: set the
+lens specification (aperture diameter, focal length, field of view, CFA,
+optimization budget), launch the $I_{\mathrm{tar}}$ width-map optimization on
+your own GPU, and watch a live optical-layout cross-section, the evolving width
+map, the $I_{\mathrm{tar}}$ curve and a progress bar. On completion it renders
+the on-axis PSF and channel MTF and offers the width map for download.
+
+```
+pip install fastapi uvicorn
+python webapp/server.py
+# open http://127.0.0.1:8642        (append ?mock=1 for a no-GPU demo)
+```
+
+The sensor sampling contract is fixed (1 um pixels on a 0.25 um scene grid, the
+64-alias polyphase operator, nine design wavelengths, the SiN library); aperture
+diameter, focal length, field of view, CFA and the optimization budget are free.
+See [`webapp/README.md`](webapp/README.md) for the parameter reference and
+hardware requirements.
+
 ## What is here
 
 | capability | where |
