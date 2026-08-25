@@ -1,5 +1,7 @@
 # metalens-information-design
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.22100294.svg)](https://doi.org/10.5281/zenodo.22100294)
+
 Code for *Information-optimized color metalenses for camera imaging*.
 
 A rigorous full-Jones forward model for a single-layer metalens in front of an
@@ -137,6 +139,9 @@ checkpoint selection, image-formation vs metrics) are documented in
   note   = {arXiv preprint}
 }
 ```
+
+The archived software release is citable as
+[10.5281/zenodo.22100294](https://doi.org/10.5281/zenodo.22100294).
 
 See `CITATION.cff` for the software citation.
 
