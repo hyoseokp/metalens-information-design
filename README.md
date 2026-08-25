@@ -1,6 +1,6 @@
 # metalens-information-design
 
-Code for *Direct camera-information optimization of color metalenses without a prescribed phase profile*.
+Code for *Information-optimized color metalenses for camera imaging*.
 
 A rigorous full-Jones forward model for a single-layer metalens in front of an
 RGGB colour filter array, the target-information objective that the design
@@ -132,7 +132,7 @@ checkpoint selection, image-formation vs metrics) are documented in
 ```bibtex
 @misc{Park2026TargetPosteriorMetalens,
   author = {Park, Hyoseok and Park, Yeonsang},
-  title  = {Direct camera-information optimization of color metalenses without a prescribed phase profile},
+  title  = {Information-optimized color metalenses for camera imaging},
   year   = {2026},
   note   = {arXiv preprint}
 }
