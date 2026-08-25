@@ -1,0 +1,32 @@
+{
+  "title": "metalens-information-design: Information-optimized color metalenses for camera imaging",
+  "upload_type": "software",
+  "access_right": "open",
+  "license": "other-open",
+  "creators": [
+    {
+      "name": "Park, Hyoseok",
+      "affiliation": "Department of Physics, Chungnam National University"
+    },
+    {
+      "name": "Park, Yeonsang",
+      "affiliation": "Department of Physics, Chungnam National University"
+    }
+  ],
+  "description": "Code accompanying the manuscript \"Information-optimized color metalenses for camera imaging\": a rigorous full-Jones forward model for a single-layer metalens in front of an RGGB colour filter array, the target-information objective, the projected width-map optimizer, three published width maps with a reproduction script, and a local web console for running the optimization.",
+  "keywords": [
+    "metalens",
+    "metasurface",
+    "computational imaging",
+    "information theory",
+    "inverse design",
+    "color imaging"
+  ],
+  "related_identifiers": [
+    {
+      "identifier": "arXiv:2608.15907",
+      "relation": "isSupplementTo",
+      "scheme": "arxiv"
+    }
+  ]
+}
