@@ -28,6 +28,37 @@ Fixed across all three: Si₃N₄ pillars, 1000 nm tall, 290 nm pitch, 208 µm
 aperture, NA 0.3, *f* = 346.7 µm, widths 0.10–0.24 µm, a 720 × 720 lattice
 of 518,400 sites. **The only variable is the width map.**
 
+## Figures
+
+![Workflow](docs/figures/fig1_workflow.png)
+
+**Conventional design versus this work.** Both routes draw meta-atoms from the
+same width library and see the same focusing geometry and RGGB detector. The
+conventional route prescribes a hyperbolic phase and matches a width to it at
+each radius, so the camera never enters the design. Here no phase is prescribed:
+the width map is optimized directly against the information the raw camera
+measurement carries about the desired image, with a hyperbolic map used only to
+initialize the search.
+
+![Material generality](docs/figures/generality_sin_sio2_tio2.png)
+
+**The same width-only optimization on three meta-atom libraries.** Reconstructed
+landscape for SiN, SiO₂ and TiO₂ (rows) under the hyperbolic reference and the
+information design (columns), each formed by direct full-scene propagation and
+reconstructed under its own analytic colour calibration. PSNR rises from 19.3 to
+20.6 dB (SiN), 19.9 to 21.2 dB (SiO₂) and 18.5 to 20.3 dB (TiO₂). The lower
+panel shows the per-wavelength on-axis PSF for SiN: the reference concentrates
+its focus near 600 nm and blurs the blue channel, and the information design
+flattens the focus across the band.
+
+![Kodak scenes 1](docs/figures/kodak_scenes_1.png)
+![Kodak scenes 2](docs/figures/kodak_scenes_2.png)
+
+**Seven further held-out natural scenes (Kodak test images).** Rendered through
+the identical pipeline, the information design lowers the colour error on every
+scene (mean ΔE₀₀ 11.52 → 9.53) and raises PSNR on five of the seven (mean
++0.30 dB). Per-scene values are in the manuscript's Supplementary Note 9.
+
 ## Quickstart
 
 ```
