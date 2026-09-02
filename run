@@ -6,12 +6,31 @@
 #
 #   DESIGNS=information ./run     # one design (about 15 min on CPU)
 #   ./run                         # all three designs (about 45 min on CPU)
+#
+# Peak memory is about 15 GB on CPU. On a smaller allocation the process is
+# killed without a Python traceback, so stdout is left unbuffered to keep
+# whatever was printed before that point.
 set -euo pipefail
+export PYTHONUNBUFFERED=1
 cd "$(dirname "$0")"
 
 RESULTS="${RESULTS_DIR:-/results}"
 mkdir -p "$RESULTS"
+LOG="$RESULTS/reproduce_log.txt"
+
+# Record the container's resources first, so a run that is killed for memory
+# still leaves the reason in the log.
+{
+  echo "== host =="
+  echo "cores: $(nproc)"
+  free -g 2>/dev/null || true
+  for f in /sys/fs/cgroup/memory.max /sys/fs/cgroup/memory/memory.limit_in_bytes; do
+    [ -r "$f" ] && echo "cgroup memory limit ($f): $(cat "$f")"
+  done
+  python -c "import sys, torch, numpy; print('python', sys.version.split()[0], 'torch', torch.__version__, 'numpy', numpy.__version__)"
+  echo "== reproduce =="
+} 2>&1 | tee "$LOG"
 
 python reproduce.py --device cpu --designs "${DESIGNS:-all}" 2>&1 \
-  | tee "$RESULTS/reproduce_log.txt"
+  | tee -a "$LOG"
 exit "${PIPESTATUS[0]}"

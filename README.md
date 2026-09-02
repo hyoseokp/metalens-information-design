@@ -70,8 +70,8 @@ python reproduce.py --designs information --device cuda
 `reproduce.py` scores each stored width map through the full-Jones forward model
 over a 25-point field quadrature and nine wavelengths, and checks the weighted
 $I_{\mathrm{tar}}$ against `records/expected.json` within a 1 % relative
-tolerance. The vectorial forward is heavy: about 15 min per design on CPU, and
-much faster on CUDA.
+tolerance. The vectorial forward is heavy: about 15 min per design and about
+15 GB of peak memory on CPU, and much faster on CUDA.
 
 To run the optimization method itself:
 

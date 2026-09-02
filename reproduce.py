@@ -12,8 +12,9 @@ width maps are the published artefact.
 
 The forward model is vectorial (full 2x2 Jones, angle-resolved) and evaluates 25
 field points over nine wavelengths, so a full run takes roughly 15 min per design
-on CPU and is much faster on CUDA. Exit status is non-zero if any weighted I_tar
-deviates from records/expected.json by more than the relative tolerance.
+on CPU with a peak memory of about 15 GB, and is much faster on CUDA. Exit
+status is non-zero if any weighted I_tar deviates from records/expected.json by
+more than the relative tolerance.
 """
 from __future__ import annotations
 
