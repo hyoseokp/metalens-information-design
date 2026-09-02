@@ -1,8 +1,8 @@
 {
-  "title": "metalens-information-design: Information-optimized color metalenses for camera imaging",
+  "title": "metalens-information-design: Information-Optimized Design of Color Metalenses without a Prescribed Phase",
   "upload_type": "software",
   "access_right": "open",
-  "license": "other-open",
+  "license": "other-closed",
   "creators": [
     {
       "name": "Park, Hyoseok",
@@ -13,7 +13,7 @@
       "affiliation": "Department of Physics, Chungnam National University"
     }
   ],
-  "description": "Code accompanying the manuscript \"Information-optimized color metalenses for camera imaging\": a rigorous full-Jones forward model for a single-layer metalens in front of an RGGB colour filter array, the target-information objective, the projected width-map optimizer, three published width maps with a reproduction script, and a local web console for running the optimization.",
+  "description": "Code accompanying the manuscript \"Information-Optimized Design of Color Metalenses without a Prescribed Phase\": a rigorous full-Jones forward model for a single-layer metalens in front of an RGGB colour filter array, the target-information objective, the projected width-map optimizer, three published width maps with a reproduction script, and a local web console for running the optimization.",
   "keywords": [
     "metalens",
     "metasurface",

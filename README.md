@@ -2,7 +2,7 @@
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.22100294.svg)](https://doi.org/10.5281/zenodo.22100294)
 
-Code for *Information-optimized color metalenses for camera imaging*.
+Code for *Information-Optimized Design of Color Metalenses without a Prescribed Phase*.
 
 A rigorous full-Jones forward model for a single-layer metalens in front of an
 RGGB colour filter array, the target-information objective that the design
@@ -165,7 +165,7 @@ checkpoint selection, image-formation vs metrics) are documented in
 ```bibtex
 @misc{Park2026TargetPosteriorMetalens,
   author = {Park, Hyoseok and Park, Yeonsang},
-  title  = {Information-optimized color metalenses for camera imaging},
+  title  = {Information-Optimized Design of Color Metalenses without a Prescribed Phase},
   year   = {2026},
   note   = {arXiv preprint}
 }
