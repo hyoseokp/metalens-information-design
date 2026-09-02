@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# Code Ocean entry point. Reproduces the manuscript's Table 1 target
+# information for the three published width maps and keeps the log in
+# /results. The exit status is that of reproduce.py, so a tolerance failure
+# is reported as a failed run.
+#
+#   DESIGNS=information ./run     # one design (about 15 min on CPU)
+#   ./run                         # all three designs (about 45 min on CPU)
+set -euo pipefail
+cd "$(dirname "$0")"
+
+RESULTS="${RESULTS_DIR:-/results}"
+mkdir -p "$RESULTS"
+
+python reproduce.py --device cpu --designs "${DESIGNS:-all}" 2>&1 \
+  | tee "$RESULTS/reproduce_log.txt"
+exit "${PIPESTATUS[0]}"
