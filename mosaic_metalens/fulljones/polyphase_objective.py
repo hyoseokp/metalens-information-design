@@ -13,6 +13,7 @@ spatially varying raw image is globally circulant.
 
 from __future__ import annotations
 
+import hashlib
 import math
 from collections.abc import Mapping
 from typing import Any, Sequence
@@ -46,6 +47,83 @@ def _require_frozen_finite(tensor: torch.Tensor, name: str) -> torch.Tensor:
     if not bool(torch.isfinite(tensor.detach()).all()):
         raise ValueError(f"{name} must be finite")
     return tensor
+
+
+# --- validated scene prior, audited once per process ------------------------
+#
+# The aliased scene prior is a fixed function of the scene power spectrum and
+# the scene color covariance, both frozen scene statistics.  Its fail-closed
+# Hermitian-PSD audit is a batched eigendecomposition over the whole frequency
+# grid, and the CUDA batched Hermitian eigensolver is unavailable on part of
+# this project's hardware, so the audit runs on the host.  Re-running it for
+# every field of every optimization step costs far more than the optical
+# forward it guards.  The prior is therefore built and audited once per
+# distinct scene protocol and reused, keyed on the content of the two frozen
+# inputs so that any change to the prior is audited again.
+_PRIOR_CACHE_KEY: str | None = None
+_PRIOR_CACHE_VALUE: torch.Tensor | None = None
+
+
+def _tensor_content_key(tensor: torch.Tensor, name: str) -> str:
+    host = tensor.detach().to(device="cpu").contiguous()
+    digest = hashlib.blake2b(
+        memoryview(host.numpy()).cast("B"), digest_size=16
+    ).hexdigest()
+    return f"{name}:{tuple(host.shape)}:{host.dtype}:{digest}"
+
+
+def scene_prior_cache_key(
+    scene_power_spectrum: torch.Tensor,
+    scene_color_covariance: torch.Tensor,
+    aliased_dtype: torch.dtype,
+    device: torch.device,
+) -> str:
+    """Return a content key for the frozen scene prior of one protocol."""
+
+    return "|".join(
+        (
+            _tensor_content_key(scene_power_spectrum, "psd"),
+            _tensor_content_key(scene_color_covariance, "color"),
+            f"dtype:{aliased_dtype}",
+            f"device:{device}",
+        )
+    )
+
+
+def validated_aliased_scene_prior(
+    full_grid_scene_covariance: torch.Tensor,
+    *,
+    cache_key: str | None = None,
+) -> torch.Tensor:
+    """Return the audited, Hermitian-symmetrized aliased scene prior.
+
+    On a cache miss the fine-grid covariance goes through the ordinary
+    fail-closed :func:`build_aliased_scene_covariance` audit and is then
+    Hermitian-symmetrized exactly as the risk core would symmetrize it, so the
+    objective is numerically identical to the uncached path.  On a hit the
+    stored tensor is returned with no eigendecomposition.  ``cache_key=None``
+    disables the cache for that call.
+    """
+
+    global _PRIOR_CACHE_KEY, _PRIOR_CACHE_VALUE
+    if cache_key is not None and cache_key == _PRIOR_CACHE_KEY:
+        cached = _PRIOR_CACHE_VALUE
+        if cached is not None:
+            return cached
+    aliased = build_aliased_scene_covariance(full_grid_scene_covariance)
+    aliased = 0.5 * (aliased + aliased.conj().transpose(-2, -1))
+    if cache_key is not None and not aliased.requires_grad:
+        _PRIOR_CACHE_KEY = cache_key
+        _PRIOR_CACHE_VALUE = aliased
+    return aliased
+
+
+def clear_scene_prior_cache() -> None:
+    """Drop the audited scene prior held for reuse."""
+
+    global _PRIOR_CACHE_KEY, _PRIOR_CACHE_VALUE
+    _PRIOR_CACHE_KEY = None
+    _PRIOR_CACHE_VALUE = None
 
 
 def _reject_boolean_numeric(value: object, name: str) -> None:
@@ -425,12 +503,11 @@ def _field_object_batch(
 
 
 def _target_prior_risk(
-    full_grid_covariance: torch.Tensor,
+    aliased: torch.Tensor,
     color_transform: torch.Tensor,
     color_weight: torch.Tensor | None,
     frequency_weight: torch.Tensor,
 ) -> torch.Tensor:
-    aliased = build_aliased_scene_covariance(full_grid_covariance)
     transform = build_alias_block_target_transform(color_transform).to(aliased.dtype)
     target = transform @ aliased @ transform.conj().transpose(-2, -1)
     if color_weight is not None:
@@ -630,8 +707,16 @@ def dense_exact_rggb_a_optimal_loss(
     )
     if color_covariance.shape != (latent_channels, latent_channels):
         raise ValueError("scene_color_covariance must have shape [K, K]")
-    full_covariance = (scene_psd[..., None, None] * color_covariance).to(
+    aliased_dtype = (
         torch.complex64 if real_dtype == torch.float32 else torch.complex128
+    )
+    full_covariance = (scene_psd[..., None, None] * color_covariance).to(aliased_dtype)
+    # Audit and alias the frozen prior once, then reuse it for every field.
+    aliased_covariance = validated_aliased_scene_prior(
+        full_covariance,
+        cache_key=scene_prior_cache_key(
+            scene_psd, color_covariance, aliased_dtype, device
+        ),
     )
 
     source = (
@@ -691,7 +776,7 @@ def dense_exact_rggb_a_optimal_loss(
         scaled_frequency_weight / scaled_frequency_weight.sum()
     )
     prior_risk = _target_prior_risk(
-        full_covariance,
+        aliased_covariance,
         color_transform,
         color_weight,
         normalized_frequency_weight,
@@ -804,6 +889,7 @@ def dense_exact_rggb_a_optimal_loss(
             condition_number_limit=condition_limit_value,
             maximum_whitened_signal_power=signal_power_limit_value,
             return_channel_diagnostics=return_channel_diagnostics,
+            precomputed_aliased_covariance=aliased_covariance,
         )
         field_risk = result.objective
         if field_risk.numel() != 1:

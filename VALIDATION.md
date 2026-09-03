@@ -27,6 +27,13 @@ detail that supports reproduction and is kept out of the paper.
   refinement for each arm. Each run records its field-sampling generator seed and
   sampled-index hash in the checkpoint. The terminal optimizer state is retained
   for resumption and is not used in place of the selected checkpoint.
+- The scene prior is a frozen scene statistic, so its Hermitian positive
+  semidefinite audit runs once per process and the audited prior is reused for
+  every field and every step. The audit is a batched eigendecomposition over the
+  whole frequency grid and is detached from the objective, so the reused prior
+  leaves the objective and its gradient bit-identical to a per-call audit. Any
+  change to the scene power spectrum or the scene color covariance is audited
+  again.
 
 ## Image formation vs metrics
 - Each scene is rendered once by direct full-scene propagation. The raw
