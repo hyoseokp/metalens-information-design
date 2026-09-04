@@ -66,6 +66,15 @@ def _vectorial_subbatch() -> int:
         return 3
 
 
+def _wavelength_chunk(n_wavelengths: int) -> int:
+    """Wavelengths propagated per pass through the pixel-stack detector.
+
+    Shares the ENGINE2_WAVELENGTH_CHUNK setting with the pixel-stack
+    transfer build so one variable selects the whole low-memory path."""
+    from .pixel_stack import wavelength_chunk
+    return wavelength_chunk(n_wavelengths)
+
+
 def _local_sp_dipole_basis(theta_x_rad, theta_y_rad):
     """Local output s/p basis and the three Cartesian-dipole projections."""
     ax = torch.tan(theta_x_rad)
@@ -863,6 +872,7 @@ class MetalensImagingEngine(nn.Module):
         common_meta,
         *,
         output_shift_xy_um=None,
+        wavelength_slice=None,
     ):
         """Shared vector pixel-stack detector used by direct and D4 paths.
 
@@ -870,12 +880,26 @@ class MetalensImagingEngine(nn.Module):
         Tangential H is completed from the post-stack E spectrum in Si, then
         E and H are inverse transformed and form Poynting flux. Only at that
         final detector stage is the active-area collection weight applied.
+
+        ``wavelength_slice`` restricts the pass to a slice of the wavelength
+        axis: the pupil fields must already be sliced, and every buffer with
+        a leading wavelength axis is sliced here to match.
         """
+        n_wl = int(self.wavelengths_um.numel())
+
+        def _wl(tensor):
+            if wavelength_slice is None or tensor is None:
+                return tensor
+            if tensor.dim() >= 1 and int(tensor.shape[0]) == n_wl:
+                return tensor[wavelength_slice]
+            return tensor
+
         Ex_sens, Ey_sens = propagate_vectorial_E_cross_grid(
-            Ex_pup, Ey_pup, prop_T, common_meta=common_meta,
+            Ex_pup, Ey_pup, _wl(prop_T), common_meta=common_meta,
             skip_alignment=self._transfer_alignment_fused,
             output_shift_xy_um=output_shift_xy_um)
-        ml_factor = self._ps_ml_factor
+        ml_factor = _wl(self._ps_ml_factor)
+        k_vac = _wl(self._ps_k_vac)
         pad_hw = self._detector_pad_hw
         if pad_hw is None:
             Ex_hat = torch.fft.fft2(Ex_sens * ml_factor, dim=(-2, -1))
@@ -885,18 +909,18 @@ class MetalensImagingEngine(nn.Module):
             Ex_hat, Ey_hat = apply_pixel_stack_transfer_vectorial(
                 Ex_hat,
                 Ey_hat,
-                self._ps_stack_T_te,
-                self._ps_stack_T_tm,
+                _wl(self._ps_stack_T_te),
+                _wl(self._ps_stack_T_tm),
                 self._ps_radial_x,
                 self._ps_radial_y,
             )
             Hx_hat_si, Hy_hat_si = derive_H_in_medium(
                 Ex_hat, Ey_hat,
-                self._ps_kx_si.expand_as(Ex_hat),
-                self._ps_ky_si.expand_as(Ex_hat),
-                self._ps_kz_safe_si.expand_as(Ex_hat),
-                self._ps_evanescent_si.expand_as(Ex_hat),
-                self._ps_k_vac)
+                _wl(self._ps_kx_si).expand_as(Ex_hat),
+                _wl(self._ps_ky_si).expand_as(Ex_hat),
+                _wl(self._ps_kz_safe_si).expand_as(Ex_hat),
+                _wl(self._ps_evanescent_si).expand_as(Ex_hat),
+                k_vac)
 
             E_stack = torch.stack([Ex_hat, Ey_hat], dim=0)
             del Ex_hat, Ey_hat
@@ -932,18 +956,18 @@ class MetalensImagingEngine(nn.Module):
         Ex_hat, Ey_hat = apply_pixel_stack_transfer_vectorial(
             Ex_hat,
             Ey_hat,
-            self._ps_pad_stack_T_te,
-            self._ps_pad_stack_T_tm,
+            _wl(self._ps_pad_stack_T_te),
+            _wl(self._ps_pad_stack_T_tm),
             self._ps_pad_radial_x,
             self._ps_pad_radial_y,
         )
         Hx_hat_si, Hy_hat_si = derive_H_in_medium(
             Ex_hat, Ey_hat,
-            self._ps_pad_kx_si.expand_as(Ex_hat),
-            self._ps_pad_ky_si.expand_as(Ex_hat),
-            self._ps_pad_kz_safe_si.expand_as(Ex_hat),
-            self._ps_pad_evanescent_si.expand_as(Ex_hat),
-            self._ps_k_vac)
+            _wl(self._ps_pad_kx_si).expand_as(Ex_hat),
+            _wl(self._ps_pad_ky_si).expand_as(Ex_hat),
+            _wl(self._ps_pad_kz_safe_si).expand_as(Ex_hat),
+            _wl(self._ps_pad_evanescent_si).expand_as(Ex_hat),
+            k_vac)
 
         E_stack = torch.stack([Ex_hat, Ey_hat], dim=0)
         del Ex_hat, Ey_hat
@@ -1093,20 +1117,52 @@ class MetalensImagingEngine(nn.Module):
                     # batch; the python loop overhead amortizes over chunk_size.
                     B_tot = Ex_pup.shape[0]
                     sub = _vectorial_subbatch()
-                    for s0 in range(0, B_tot, sub):
-                        s1 = min(s0 + sub, B_tot)
-                        Sz = self._pixel_stack_detect_poynting(
-                            Ex_pup[s0:s1], Ey_pup[s0:s1], prop_T, common_meta,
-                            output_shift_xy_um=(
-                                None
-                                if vector_shift_chunk is None
-                                else vector_shift_chunk[s0:s1]
-                            ))
-                        weights = chunk.spectral_radiance[s0:s1].to(
-                            Sz.dtype)[..., None, None]
-                        accumulated = accumulated + 0.5 * (Sz * weights).sum(dim=0)
-                        del Sz, weights
-                    del Ex_pup, Ey_pup
+                    n_wl = int(self.wavelengths_um.numel())
+                    wl_chunk = _wavelength_chunk(n_wl)
+                    if wl_chunk >= n_wl:
+                        for s0 in range(0, B_tot, sub):
+                            s1 = min(s0 + sub, B_tot)
+                            Sz = self._pixel_stack_detect_poynting(
+                                Ex_pup[s0:s1], Ey_pup[s0:s1], prop_T, common_meta,
+                                output_shift_xy_um=(
+                                    None
+                                    if vector_shift_chunk is None
+                                    else vector_shift_chunk[s0:s1]
+                                ))
+                            weights = chunk.spectral_radiance[s0:s1].to(
+                                Sz.dtype)[..., None, None]
+                            accumulated = accumulated + 0.5 * (Sz * weights).sum(dim=0)
+                            del Sz, weights
+                        del Ex_pup, Ey_pup
+                        continue
+                    # Low-memory path: the detector stage is independent per
+                    # wavelength plane, so run one slice of the wavelength axis
+                    # at a time.  Each slice starts from the existing
+                    # accumulator plane and adds the sub-batches in the same
+                    # order as above, so type promotion and summation order
+                    # match the default path.
+                    planes = []
+                    for w0 in range(0, n_wl, wl_chunk):
+                        wl = slice(w0, min(w0 + wl_chunk, n_wl))
+                        plane = accumulated[wl]
+                        for s0 in range(0, B_tot, sub):
+                            s1 = min(s0 + sub, B_tot)
+                            Sz = self._pixel_stack_detect_poynting(
+                                Ex_pup[s0:s1, wl], Ey_pup[s0:s1, wl], prop_T,
+                                common_meta,
+                                output_shift_xy_um=(
+                                    None
+                                    if vector_shift_chunk is None
+                                    else vector_shift_chunk[s0:s1]
+                                ),
+                                wavelength_slice=wl)
+                            weights = chunk.spectral_radiance[s0:s1, wl].to(
+                                Sz.dtype)[..., None, None]
+                            plane = plane + 0.5 * (Sz * weights).sum(dim=0)
+                            del Sz, weights
+                        planes.append(plane)
+                    accumulated = torch.cat(planes, dim=0)
+                    del planes, Ex_pup, Ey_pup
                     continue
 
                 # Flat-pixel path: full 5-channel propagation (Ez/H needed at

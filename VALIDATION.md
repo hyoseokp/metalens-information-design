@@ -34,6 +34,16 @@ detail that supports reproduction and is kept out of the paper.
   leaves the objective and its gradient bit-identical to a per-call audit. Any
   change to the scene power spectrum or the scene color covariance is audited
   again.
+- Two environment settings lower the peak memory of the scoring path without
+  changing the model. `ENGINE2_VEC_SUBBATCH=1` propagates one dipole per pass
+  instead of three (peak about 8 GB instead of 14 GB on CPU) and returns
+  bit-identical numbers. `ENGINE2_WAVELENGTH_CHUNK=1` also builds the
+  pixel-stack transfer and runs the detector stage one wavelength at a time
+  (peak about 6 GB). That path evaluates the same elementwise expressions on
+  single-wavelength tensors, and the complex64 transcendental kernels round
+  differently on batched and unbatched inputs, so the pixel-stack transfer
+  differs by at most 2.3e-7 relative and the per-field I_tar by about 2e-12
+  relative. The published numbers were produced on the default path.
 
 ## Image formation vs metrics
 - Each scene is rendered once by direct full-scene propagation. The raw

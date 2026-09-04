@@ -7,10 +7,15 @@
 #   DESIGNS=information ./run     # one design (about 15 min on CPU)
 #   ./run                         # all three designs (about 45 min on CPU)
 #
-# Peak memory is about 15 GB on CPU. On a smaller allocation the process is
-# killed without a Python traceback, so stdout is left unbuffered to keep
-# whatever was printed before that point.
-set -euo pipefail
+# Memory. The default batch peaks at about 14 GB on CPU. On a host that
+# cannot hold that, the kernel kills the process without a Python traceback
+# (exit 137), or the allocator fails and reproduce.py exits with status 3.
+# Either way this script retries with a lower peak: first one dipole per
+# propagation pass (about 8 GB, bit-identical numbers), then also one
+# wavelength per pass (about 6 GB, agreeing to complex64 rounding). Designs
+# already scored are written to /results as they finish and are read back,
+# so a retry resumes with the design that was interrupted.
+set -uo pipefail
 export PYTHONUNBUFFERED=1
 cd "$(dirname "$0")"
 
@@ -28,9 +33,27 @@ LOG="$RESULTS/reproduce_log.txt"
     [ -r "$f" ] && echo "cgroup memory limit ($f): $(cat "$f")"
   done
   python -c "import sys, torch, numpy; print('python', sys.version.split()[0], 'torch', torch.__version__, 'numpy', numpy.__version__)"
-  echo "== reproduce =="
 } 2>&1 | tee "$LOG"
 
-python reproduce.py --device cpu --designs "${DESIGNS:-all}" 2>&1 \
-  | tee -a "$LOG"
-exit "${PIPESTATUS[0]}"
+LEVELS=(
+  ""
+  "ENGINE2_VEC_SUBBATCH=1"
+  "ENGINE2_VEC_SUBBATCH=1 ENGINE2_WAVELENGTH_CHUNK=1"
+)
+status=1
+for level in "${LEVELS[@]}"; do
+  echo "== reproduce (${level:-default memory settings}) ==" | tee -a "$LOG"
+  # shellcheck disable=SC2086  # $level is a list of NAME=VALUE words
+  env $level python reproduce.py --device cpu --designs "${DESIGNS:-all}" \
+    --results-dir "$RESULTS" 2>&1 | tee -a "$LOG"
+  status="${PIPESTATUS[0]}"
+  case "$status" in
+    137|3)
+      echo "attempt ended for lack of memory (exit $status); retrying with a lower peak" | tee -a "$LOG"
+      ;;
+    *)
+      break
+      ;;
+  esac
+done
+exit "$status"

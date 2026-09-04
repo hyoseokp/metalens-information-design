@@ -71,7 +71,14 @@ python reproduce.py --designs information --device cuda
 over a 25-point field quadrature and nine wavelengths, and checks the weighted
 $I_{\mathrm{tar}}$ against `records/expected.json` within a 1 % relative
 tolerance. The vectorial forward is heavy: about 15 min per design and about
-15 GB of peak memory on CPU, and much faster on CUDA.
+14 GB of peak memory on CPU, and much faster on CUDA.
+
+On a host with less memory, set `ENGINE2_VEC_SUBBATCH=1` to propagate one
+dipole per pass (peak about 8 GB, bit-identical numbers), and additionally
+`ENGINE2_WAVELENGTH_CHUNK=1` to handle one wavelength per pass (peak about
+6 GB, agreeing with the default to about $10^{-12}$ relative). The `run` script
+used by the Code Ocean capsule applies these settings automatically when an
+attempt is killed for memory, and resumes with the design that was interrupted.
 
 To run the optimization method itself:
 

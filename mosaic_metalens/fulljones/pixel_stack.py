@@ -61,6 +61,26 @@ import torch
 from .types import SpatialGrid
 
 
+def wavelength_chunk(n_wavelengths: int) -> int:
+    """Wavelengths handled per pass in the memory-heavy detector stages.
+
+    The pixel-stack transfer build and the detector propagation are
+    elementwise or per-plane FFTs in the wavelength axis, so splitting that
+    axis changes only the transient memory.  The default is all wavelengths
+    at once, which is the path the published numbers were produced on.
+    ``ENGINE2_WAVELENGTH_CHUNK=1`` is the low-memory setting for a host that
+    cannot hold the full batch; it agrees with the default to complex64
+    rounding of the transcendental kernels, not bit for bit."""
+    import os
+    try:
+        value = int(os.environ.get("ENGINE2_WAVELENGTH_CHUNK", "0"))
+    except ValueError:
+        value = 0
+    if value <= 0 or value >= n_wavelengths:
+        return int(n_wavelengths)
+    return value
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Multi-layer Fresnel + Fourier transfer
 # ─────────────────────────────────────────────────────────────────────────────
@@ -252,6 +272,29 @@ def build_pixel_stack_transfer_tmm_polarized(
     """
     if device is None:
         device = sensor_grid.xx_um.device
+
+    # Every quantity below is elementwise in (wavelength, kx, ky), so the
+    # wavelengths are independent.  In the low-memory setting they are built
+    # a chunk at a time, which keeps one chunk of the layer-matrix chain in
+    # memory instead of the whole band (a transient of several GiB on a
+    # padded detector grid).
+    n_wl = int(wavelengths_um.numel())
+    chunk = wavelength_chunk(n_wl)
+    if chunk < n_wl:
+        per_chunk = [
+            build_pixel_stack_transfer_tmm_polarized(
+                sensor_grid,
+                wavelengths_um[start : start + chunk],
+                layers,
+                n_initial=n_initial,
+                n_final=n_final,
+                device=device,
+            )
+            for start in range(0, n_wl, chunk)
+        ]
+        t_TE = torch.cat([pair[0] for pair in per_chunk], dim=0)
+        t_TM = torch.cat([pair[1] for pair in per_chunk], dim=0)
+        return t_TE, t_TM
 
     H, W = sensor_grid.xx_um.shape
     pitch = sensor_grid.pitch_um
