@@ -51,6 +51,20 @@ detail that supports reproduction and is kept out of the paper.
   realization and calibration coefficients are saved together, and metrics are
   computed later from those saved arrays without rerunning the optical
   simulation.
+- `image.py` is that pipeline. The scene is resized to the 198 x 198 active
+  object grid and lifted to the nine design wavelengths by the
+  covariance-weighted right inverse of the linear-sRGB target, so the truth
+  is the scene as represented under the prior. Object points are placed by
+  conserved-k-parallel Snell inversion of the 1 um photosite centres and
+  propagated through the full-Jones forward. A width map that is mirror
+  symmetric to 1e-7 is rendered on one quadrant and completed by reflection,
+  and a D4-symmetric map on one octant. Asymmetric maps are rendered directly.
+- Reconstruction is bilinear RGGB demosaic followed by the spatially varying
+  Wiener filter over an 8 x 8 bank of exact field PSFs (regularization 0.03,
+  sensor-side placement, no flip) and one analytic 3 x 3 colour matrix per
+  design, the inverse of the decoder DC matrix times the camera DC matrix on
+  a 64 x 64 centre region. PSNR, CIEDE2000 and S-CIELAB are computed on
+  clipped linear RGB.
 - PSF and OTF banks enter only the Wiener reconstruction decoder and never form
   the raw image. Reconstruction coefficients, PSNR and color-error values do not
   enter optical gradients or checkpoint selection.

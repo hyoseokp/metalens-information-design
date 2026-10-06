@@ -14,15 +14,15 @@ reported numbers.
 |  | hyperbolic reference | information design | MTF-volume control |
 |---|---|---|---|
 | target information $I_{\mathrm{tar}}$ (bit/raw px) | 0.5059 | **0.5860** (+15.8 %) | 0.4180 (−17.4 %) |
-| PSNR (dB) | 19.30 | **20.58** (+1.28 dB) | 17.60 |
-| $\Delta E_{00}$ | 12.05 | **9.87** (−18.1 %) | 15.71 |
-| S-CIELAB | 21.35 | **16.31** (−23.6 %) | — |
+| PSNR (dB) | 19.29 | **20.87** (+1.58 dB) | 17.61 |
+| $\Delta E_{00}$ | 12.05 | **9.71** (−19.4 %) | 15.69 |
+| S-CIELAB | 21.36 | **16.27** (−23.8 %) | — |
 | collected charge (model-e⁻/raw px) | 724.0 | 624.4 (−13.8 %) | 274.8 |
 
 `reproduce.py` recomputes the target information $I_{\mathrm{tar}}$ row from the
 published width maps. PSNR, $\Delta E_{00}$ and S-CIELAB are the high-signal-to-noise
-reconstruction metrics on the held-out landscape scene (the manuscript does not
-report an S-CIELAB value for the MTF-volume control).
+reconstruction metrics on the held-out landscape scene, rendered with `image.py`
+(the manuscript does not report an S-CIELAB value for the MTF-volume control).
 
 Fixed across all three: Si₃N₄ pillars, 1000 nm tall, 290 nm pitch, 208 µm
 aperture, NA 0.3, *f* = 346.7 µm, widths 0.10–0.24 µm, a 720 × 720 lattice
@@ -46,7 +46,7 @@ initialize the search.
 landscape for SiN, SiO₂ and TiO₂ (rows) under the hyperbolic reference and the
 information design (columns), each formed by direct full-scene propagation and
 reconstructed under its own analytic colour calibration. PSNR rises from 19.3 to
-20.6 dB (SiN), 19.9 to 21.2 dB (SiO₂) and 18.5 to 20.3 dB (TiO₂). The lower
+20.9 dB (SiN), 19.9 to 21.2 dB (SiO₂) and 18.5 to 20.3 dB (TiO₂). The lower
 panel shows the per-wavelength on-axis PSF for SiN: the reference concentrates
 its focus near 600 nm and blurs the blue channel, and the information design
 flattens the focus across the band.
@@ -57,7 +57,7 @@ flattens the focus across the band.
 **Seven further held-out natural scenes (Kodak test images).** Rendered through
 the identical pipeline, the information design lowers the colour error on every
 scene (mean ΔE₀₀ 11.52 → 9.53) and raises PSNR on five of the seven (mean
-+0.30 dB). Per-scene values are in the manuscript's Supplementary Note 9.
++0.30 dB). Per-scene values are in Section S8.8 of the manuscript's Supplement 1.
 
 ## Quickstart
 
@@ -97,6 +97,35 @@ stochastic and the objective non-convex. A full run is only practical on CUDA.
 
 Tested on Python 3.12, torch 2.6.0+cu118.
 
+## Imaging a scene
+
+```
+python image.py --scene data/scenes/kodim01.png              # all three designs
+python image.py --scene my_photo.png --designs information
+```
+
+`image.py` is the manuscript imaging pipeline. The scene is resized to the
+198 × 198 active object grid, lifted to the nine design wavelengths under the
+scene prior, and every object point is propagated through the full-Jones
+forward model onto the RGGB sensor. That measurement is an exact full-scene
+propagation (39,204 points per design), never a PSF convolution. The raw frame
+is demosaicked, deconvolved by a spatially varying Wiener filter built from an
+8 × 8 bank of exact field PSFs, and colour-corrected by the analytic per-design
+3 × 3 matrix. PSNR, CIEDE2000 and S-CIELAB are reported against the scene as
+represented under the prior, on clipped linear RGB.
+
+Outputs land under `out/imaging/`: the PSF bank and colour calibration of each
+design (scene independent, reused), and per scene the raw frame, the
+reconstruction as `.npz` and sRGB `.png`, and `metrics.json`. Each stage is
+cached, so metrics and previews can be recomputed without re-simulating.
+
+The scene render needs CUDA: about 20 min per design for the D4-symmetric
+hyperbolic map (eight-fold reuse) and 35 min for the mirror-symmetric
+optimized maps (four-fold reuse) on a 48 GB card. The PSF bank and the
+calibration probe are 65 single-point propagations per design and also run
+on CPU. `data/scenes/kodim01.png` is image 1 of the Kodak Lossless True Color
+Image Suite. Any RGB image works as input.
+
 ## Interactive designer (local web app)
 
 `webapp/` provides a local browser console around the same optimization: set the
@@ -129,6 +158,8 @@ hardware requirements.
 | the low-memory posterior determinant | `mosaic_metalens/fulljones/polyphase_mmse.py` |
 | the mirror-quadrant width parameterization and projected optimizer | `mosaic_metalens/fulljones/optim_widthmap.py`, `projected_width_optimizer.py` |
 | the optimization driver | `optimize.py` |
+| exact full-scene rendering, the field PSF bank, Wiener reconstruction, colour calibration and metrics | `scene_render.py`, `fov_psf.py`, `psf_cache.py`, `imaging.py`, `colour_calibration.py`, `imaging_metrics.py` |
+| the imaging driver | `image.py` |
 | the three published designs | `designs/` |
 | the full-Jones LUT and scene prior | `data/fulljones/` |
 
@@ -162,6 +193,8 @@ $I_{\mathrm{tar}}$.
   **21**(15):4985 (2021).
 - Meta-atom library: computed with TORCWA (Kim and Kim, *Comput. Phys. Commun.*
   **282**:108552, 2023).
+- Example scene: `data/scenes/kodim01.png`, Kodak Lossless True Color Image
+  Suite (Eastman Kodak, released for unrestricted use).
 
 Numerical conventions and provenance controls (exposure calibration, evaluator,
 checkpoint selection, image-formation vs metrics) are documented in

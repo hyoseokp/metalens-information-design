@@ -11,4 +11,5 @@ dependencies:
   - pip
   - pip:
       - torch>=2.4,<3
+      - pillow>=10
       - tqdm
