@@ -56,8 +56,8 @@ flattens the focus across the band.
 
 **Seven further held-out natural scenes (Kodak test images).** Rendered through
 the identical pipeline, the information design lowers the colour error on every
-scene (mean ΔE₀₀ 11.52 → 9.53) and raises PSNR on five of the seven (mean
-+0.30 dB). Per-scene values are in Section S8.8 of the manuscript's Supplement 1.
+scene (mean ΔE₀₀ 11.32 → 9.50) and raises PSNR on all seven (mean
++0.69 dB). Per-scene values are in Section S8.8 of the manuscript's Supplement 1.
 
 ## Quickstart
 
